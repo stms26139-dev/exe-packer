@@ -1,0 +1,38 @@
+name: Build Evader Packer
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2019
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Build Solution (Release | Win32)
+      run: |
+        msbuild Evader.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+
+    - name: Prepare Artifacts
+      run: |
+        mkdir artifacts
+        copy "Packer\Release\Packer.exe" artifacts\
+        copy "UnpackStub\Release\UnpackStub.exe" artifacts\
+        # الـ Packer بيدور على UnpackStub.exe جنبّه
+        copy "UnpackStub\Release\UnpackStub.exe" artifacts\UnpackStub.exe
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Evader-Binaries
+        path: artifacts/
+        retention-days: 7
