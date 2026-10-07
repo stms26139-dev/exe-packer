@@ -18,22 +18,30 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
-    - name: Build Solution (Release | Win32)
+    - name: Build Solution (Release | x86)
       run: |
-        msbuild Evader.sln /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /m /v:minimal
+        msbuild Evader.sln /p:Configuration=Release /p:Platform=x86 /p:PlatformToolset=v143 /m /v:minimal
 
     - name: Prepare Artifacts
+      shell: pwsh
       run: |
-        mkdir artifacts
-        if (Test-Path "Packer\Release\Packer.exe") { copy "Packer\Release\Packer.exe" artifacts\ }
-        if (Test-Path "UnpackStub\Release\UnpackStub.exe") { 
-          copy "UnpackStub\Release\UnpackStub.exe" artifacts\
-          copy "UnpackStub\Release\UnpackStub.exe" artifacts\UnpackStub.exe
+        New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+        
+        # نبحث عن أي exe اتعمل
+        Get-ChildItem -Recurse -Filter "*.exe" | Where-Object { 
+          $_.FullName -match "Release" -or $_.FullName -match "x86" 
+        } | ForEach-Object {
+          Write-Host "Found: $($_.FullName)"
+          Copy-Item $_.FullName -Destination "artifacts\" -Force
         }
-        # لو الـ output في مجلد تاني
-        Get-ChildItem -Recurse -Filter "*.exe" | Where-Object { $_.FullName -match "Release" } | ForEach-Object {
-          Copy-Item $_.FullName -Destination artifacts\ -Force
+        
+        # نتأكد إن UnpackStub موجود جنب Packer
+        if (Test-Path "artifacts\UnpackStub.exe") {
+          Copy-Item "artifacts\UnpackStub.exe" -Destination "artifacts\UnpackStub.exe" -Force
         }
+
+    - name: List artifacts
+      run: dir artifacts
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
