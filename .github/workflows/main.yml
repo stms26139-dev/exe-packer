@@ -15,6 +15,17 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Remove missing ManualUnpack from solution
+      shell: pwsh
+      run: |
+        $sln = Get-Content "Evader.sln" -Raw
+        # نشيل مشروع ManualUnpack من الـ solution
+        $sln = $sln -replace '(?s)Project\("\{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942\}"\) = "ManualUnpack".*?EndProject\r?\n', ''
+        # نشيل كل الـ configuration بتاعتها
+        $sln = $sln -replace '(?m)^.*\{00E651F5-67DD-483D-BC2A-54876B874CDF\}.*\r?\n', ''
+        Set-Content "Evader.sln" -Value $sln -NoNewline
+        Write-Host "ManualUnpack removed from solution"
+
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
@@ -27,21 +38,30 @@ jobs:
       run: |
         New-Item -ItemType Directory -Force -Path artifacts | Out-Null
         
-        # نبحث عن أي exe اتعمل
+        # المسارات اللي ظهرت في اللوج
+        $possiblePaths = @(
+          "UnpackStubBuild\bin\Win32\Release\UnpackStub.exe",
+          "PackerBuild\bin\Win32\Release\Packer.exe",
+          "UnpackStub\Release\UnpackStub.exe",
+          "Packer\Release\Packer.exe"
+        )
+        
+        foreach ($p in $possiblePaths) {
+          if (Test-Path $p) {
+            Write-Host "Copying $p"
+            Copy-Item $p -Destination "artifacts\" -Force
+          }
+        }
+        
+        # بحث إضافي
         Get-ChildItem -Recurse -Filter "*.exe" | Where-Object { 
-          $_.FullName -match "Release" -or $_.FullName -match "x86" 
+          $_.Name -match "Packer|UnpackStub"
         } | ForEach-Object {
-          Write-Host "Found: $($_.FullName)"
+          Write-Host "Found extra: $($_.FullName)"
           Copy-Item $_.FullName -Destination "artifacts\" -Force
         }
         
-        # نتأكد إن UnpackStub موجود جنب Packer
-        if (Test-Path "artifacts\UnpackStub.exe") {
-          Copy-Item "artifacts\UnpackStub.exe" -Destination "artifacts\UnpackStub.exe" -Force
-        }
-
-    - name: List artifacts
-      run: dir artifacts
+        dir artifacts
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
