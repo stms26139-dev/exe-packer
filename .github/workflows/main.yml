@@ -19,9 +19,7 @@ jobs:
       shell: pwsh
       run: |
         $sln = Get-Content "Evader.sln" -Raw
-        # نشيل مشروع ManualUnpack من الـ solution
         $sln = $sln -replace '(?s)Project\("\{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942\}"\) = "ManualUnpack".*?EndProject\r?\n', ''
-        # نشيل كل الـ configuration بتاعتها
         $sln = $sln -replace '(?m)^.*\{00E651F5-67DD-483D-BC2A-54876B874CDF\}.*\r?\n', ''
         Set-Content "Evader.sln" -Value $sln -NoNewline
         Write-Host "ManualUnpack removed from solution"
@@ -38,30 +36,22 @@ jobs:
       run: |
         New-Item -ItemType Directory -Force -Path artifacts | Out-Null
         
-        # المسارات اللي ظهرت في اللوج
-        $possiblePaths = @(
+        $files = @(
           "UnpackStubBuild\bin\Win32\Release\UnpackStub.exe",
-          "PackerBuild\bin\Win32\Release\Packer.exe",
-          "UnpackStub\Release\UnpackStub.exe",
-          "Packer\Release\Packer.exe"
+          "PackerBuild\bin\Win32\Release\Packer.exe"
         )
         
-        foreach ($p in $possiblePaths) {
-          if (Test-Path $p) {
-            Write-Host "Copying $p"
-            Copy-Item $p -Destination "artifacts\" -Force
+        foreach ($f in $files) {
+          if (Test-Path $f) {
+            Write-Host "Copying $f"
+            Copy-Item $f -Destination "artifacts\" -Force
+          } else {
+            Write-Host "NOT FOUND: $f"
           }
         }
         
-        # بحث إضافي
-        Get-ChildItem -Recurse -Filter "*.exe" | Where-Object { 
-          $_.Name -match "Packer|UnpackStub"
-        } | ForEach-Object {
-          Write-Host "Found extra: $($_.FullName)"
-          Copy-Item $_.FullName -Destination "artifacts\" -Force
-        }
-        
-        dir artifacts
+        Write-Host "`n=== Artifacts content ==="
+        Get-ChildItem artifacts | Format-Table Name, Length
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
