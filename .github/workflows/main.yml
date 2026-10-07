@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2019
+    runs-on: windows-2022
 
     steps:
     - name: Checkout
@@ -20,15 +20,20 @@ jobs:
 
     - name: Build Solution (Release | Win32)
       run: |
-        msbuild Evader.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+        msbuild Evader.sln /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /m /v:minimal
 
     - name: Prepare Artifacts
       run: |
         mkdir artifacts
-        copy "Packer\Release\Packer.exe" artifacts\
-        copy "UnpackStub\Release\UnpackStub.exe" artifacts\
-        # الـ Packer بيدور على UnpackStub.exe جنبّه
-        copy "UnpackStub\Release\UnpackStub.exe" artifacts\UnpackStub.exe
+        if (Test-Path "Packer\Release\Packer.exe") { copy "Packer\Release\Packer.exe" artifacts\ }
+        if (Test-Path "UnpackStub\Release\UnpackStub.exe") { 
+          copy "UnpackStub\Release\UnpackStub.exe" artifacts\
+          copy "UnpackStub\Release\UnpackStub.exe" artifacts\UnpackStub.exe
+        }
+        # لو الـ output في مجلد تاني
+        Get-ChildItem -Recurse -Filter "*.exe" | Where-Object { $_.FullName -match "Release" } | ForEach-Object {
+          Copy-Item $_.FullName -Destination artifacts\ -Force
+        }
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
